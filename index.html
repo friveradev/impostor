@@ -42,13 +42,14 @@
   let users = [];
   let messages = [];
   let timerInterval;
+  const url = window.location.href.replace(/^https?:\/\//, '')
 
   // Función para conectar al WebSocket
   function conectarWebSocket() {
     username = document.getElementById('username').value;
     if (username.trim() !== '') {
-        const socket = new WebSocket(`ws://${window.location.href}`);
-        console.log(window.location.href)
+        console.log(url)
+        const socket = new WebSocket(`ws://${url}`);
 
       socket.addEventListener('open', (event) => {
         console.log(`Conectado como ${username}`);
