@@ -47,7 +47,8 @@
   function conectarWebSocket() {
     username = document.getElementById('username').value;
     if (username.trim() !== '') {
-        const socket = new WebSocket(`ws://localhost:${window.location.port || 4000}`);
+        const socket = new WebSocket(`ws://${window.location.href}`);
+        console.log(window.location.href)
 
       socket.addEventListener('open', (event) => {
         console.log(`Conectado como ${username}`);
