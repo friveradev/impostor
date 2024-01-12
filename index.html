@@ -1,0 +1,168 @@
+<!-- index.html -->
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebSocket Chat</title>
+</head>
+<body>
+
+<div>
+  <form id="usernameForm">
+    <label for="username">Ingresa tu nombre: </label>
+    <input type="text" id="username" required />
+    <button type="submit">Conectar</button>
+  </form>
+</div>
+
+<div id="chat-container">
+  <ul id="message-list"></ul>
+</div>
+
+<div>
+  <form id="messageForm">
+    <input type="text" id="message-input" placeholder="Escribe un mensaje..." />
+    <button type="submit">Enviar</button>
+  </form>
+</div>
+
+<div>
+  <p id="timer">Tiempo restante: 1:00 min</p>
+</div>
+
+<div>
+    <ul id="usuarios">
+    </ul>
+</div>
+
+<script>
+  let username = '';
+  let users = [];
+  let messages = [];
+  let timerInterval;
+
+  // Función para conectar al WebSocket
+  function conectarWebSocket() {
+    username = document.getElementById('username').value;
+    if (username.trim() !== '') {
+        const socket = new WebSocket(`ws://localhost:${window.location.port || 4000}`);
+
+      socket.addEventListener('open', (event) => {
+        console.log(`Conectado como ${username}`);
+        socket.send(`cmd:newUser:${username}`);
+      });
+
+      socket.addEventListener('message', (event) => {
+        event.data.text().then((messageText) => {
+            if (messageText.startsWith("cmd:users:")) {
+                listarUsuarios(messageText)
+            } else if (messageText.startsWith("cmd:")) {
+                switch (messageText) {
+                    case 'cmd:iniciar':
+                        iniciarContador();
+                        break;
+                    case 'cmd:fin':
+                        detenerContador();
+                        break;
+                    case "3":
+                        console.log("Seleccionaste la opción 3");
+                        break;
+                    default:
+                        console.log("Opción no válida");
+                }
+            } else {
+                mostrarMensaje(`${messageText}`);
+            }
+        });
+      });
+
+      socket.addEventListener('close', (event) => {
+        console.log('Conexión cerrada');
+        detenerContador();
+      });
+
+      window.enviarMensaje = function () {
+        const messageInput = document.getElementById('message-input');
+        const message = messageInput.value;
+        if (message.trim() !== '') {
+          if (message.startsWith("cmd:")) {
+            socket.send(`${message}`);
+          } else {
+            socket.send(`${username}: ${message}`);
+          }
+          messageInput.value = '';
+        }
+      };
+    }
+  }
+
+  // Función para mostrar mensajes en el DOM
+  function mostrarMensaje(message) {
+    const messageList = document.getElementById('message-list');
+    const listItem = document.createElement('li');
+    listItem.textContent = message;
+    messageList.appendChild(listItem);
+  }
+
+  // Función para iniciar el contador
+  function iniciarContador() {
+    let tiempoRestante = 60; // 60 segundos = 1 minuto
+
+    // Actualizar el texto del contador cada segundo
+    timerInterval = setInterval(() => {
+      tiempoRestante--;
+      const minutos = Math.floor(tiempoRestante / 60);
+      const segundos = tiempoRestante % 60;
+      const tiempoFormateado = `${minutos}:${segundos < 10 ? '0' : ''}${segundos}`;
+
+      document.getElementById('timer').textContent = `Tiempo restante: ${tiempoFormateado} min`;
+
+      if (tiempoRestante === 0) {
+        detenerContador();
+      }
+    }, 1000);
+  }
+
+  // Función para detener el contador
+  function detenerContador() {
+    clearInterval(timerInterval);
+    document.getElementById('timer').textContent = 'Tiempo restante: 1:00 min';
+  }
+
+  function listarUsuarios(messageText) {
+    const regex = /cmd:users:{([^}]*)}/;
+    const match = messageText.match(regex);
+    if (match && match[1]) {
+        const namesString = match[1];
+        users = namesString.split(',');
+ 
+        var usuariosList = document.getElementById("usuarios");
+        usuariosList.innerHTML = "";
+        users.forEach(function(elemento) {
+            var li = document.createElement("li");
+            li.appendChild(document.createTextNode(elemento));
+            usuariosList.appendChild(li);
+        });
+    }
+  }
+
+  // Manejar el envío del formulario de nombre
+  const usernameForm = document.getElementById('usernameForm');
+  usernameForm.addEventListener('submit', function (event) {
+    event.preventDefault();
+    conectarWebSocket();
+  });
+
+  // Manejar el envío del formulario de mensaje
+  const messageForm = document.getElementById('messageForm');
+  messageForm.addEventListener('submit', function (event) {
+    event.preventDefault();
+    enviarMensaje();
+  });
+
+</script>
+
+</body>
+</html>
