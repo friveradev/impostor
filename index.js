@@ -31,6 +31,8 @@ const objects = [
     "Patineta", "Bolso de mano", "Hoja", "Calcetines", "Pecera", "Jaula", "Pista de carreras", "Pluma", "Huevo frito", "Oveja"
 ];
 
+let lastWord = '';
+
 function generateUserId() {
   return Date.now().toString(36) + Math.random().toString(36).substr(2);
 }
@@ -71,16 +73,23 @@ wss.on('connection', (ws) => {
 
     if (messageText === 'cmd:iniciar') {
         const targetUser = selectRandomUser(users);
-        const res = raw(selectRandomUser(objects));
+        lastWord = selectRandomUser(objects);
+        const res = raw(`$w:${lastWord}`);
         users.forEach(user => {
             if (user && user.socket.readyState === WebSocket.OPEN) {
                 if (user.id === targetUser.id) {
-                    user.socket.send(raw("Eres el impostor"));
+                    user.socket.send(raw("$i:Eres el impostor"));
                 } else {
                     user.socket.send(res);
                 }
             }
             user.socket.send(message);
+        })
+    } else if (messageText === 'cmd:fin') {
+        const res = raw(`$x:La palabra clave es: ${lastWord}`);
+        users.forEach(user => {
+            user.socket.send(res);
+            user.socket.send(raw("cmd:fin"));
         })
     } else {
         wss.clients.forEach((client) => {
@@ -90,7 +99,7 @@ wss.on('connection', (ws) => {
                 const match = messageText.match(regex);
                 const username = match[1];
                 user.username = username;
-                const parsedMessage = `${username} se ha conectado.`;
+                const parsedMessage = `$n:${username} se ha conectado.`;
                 const userList = `cmd:users:{${users.map(u => u.username).join(', ')}}`;
                 client.send(raw(userList));
                 client.send(raw(parsedMessage));

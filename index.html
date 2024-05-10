@@ -1,170 +1,361 @@
 <!-- index.html -->
 
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-bs-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WebSocket Chat</title>
+  <title>Impostor Game</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 </head>
 <body>
 
-<div>
-  <form id="usernameForm">
-    <label for="username">Ingresa tu nombre: </label>
-    <input type="text" id="username" required />
-    <button type="submit">Conectar</button>
-  </form>
-</div>
+  <div class="container-fluid">
+    <header class="d-flex flex-wrap justify-content-center py-3 mb-4 border-bottom">
+      <a href="/" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto link-body-emphasis text-decoration-none">
+        <span class="fs-4"><i class="bi bi-incognito text-danger"></i> Impostor Game</span>
+      </a>
+    </header>
+  </div>
 
-<div id="chat-container">
-  <ul id="message-list"></ul>
-</div>
+  <div class="container-fluid pb-3">
+    <div class="row" style="height: calc(100vh - 180px);">
+      <div class="col-2">
+        <div class="bg-body-tertiary border p-3 rounded shadow-sm h-100" style="height: 100%; max-height: calc(100vh - 180px); overflow-y: auto;">
+          <h6 class="pb-2 mb-0">Users</h6>
+          <ul class="list-group" id="usuarios"></ul>
+        </div>
+      </div>
+      <div class="col-10">
+        <div class="bg-body-tertiary border rounded-3 message-container" style="height: 100%; max-height: calc(100vh - 180px); overflow-y: auto;">
+          <ul class="my-3 p-3 rounded shadow-sm" id="message-list">
+            <h6 class="border-bottom pb-2 mb-0">Messages</h6>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
 
-<div>
-  <form id="messageForm">
-    <input type="text" id="message-input" placeholder="Escribe un mensaje..." />
-    <button type="submit">Enviar</button>
-  </form>
-</div>
+  <div class="container-fluid pb-3">
+    <form class="row g-3 w-100" id="messageForm">
+      <div class="col">
+        <label for="message-input" class="visually-hidden">Message</label>
+        <input type="text" class="form-control" id="message-input" placeholder="New message...">
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-primary mb-3 me-2">Send</button>
+        <button type="button" class="btn btn-success mb-3" id="game" value="start">Start</button>
+      </div>
+    </form>
+  </div>
 
-<div>
-  <p id="timer">Tiempo restante: 1:00 min</p>
-</div>
+  <div style="display: none;">
+    <p id="timer">Tiempo restante: 1:00 min</p>
+  </div>
 
-<div>
-    <ul id="usuarios">
-    </ul>
-</div>
+  <!-- Button trigger modal -->
+  <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#staticBackdrop" id="openModalButton" style="display: none;">
+    -
+  </button>
 
-<script>
-  let username = '';
-  let users = [];
-  let messages = [];
-  let timerInterval;
-  const url = window.location.href.replace(/^https?:\/\//, '')
+  <!-- Modal -->
+  <div class="modal fade" id="staticBackdrop" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <form id="usernameForm">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5" id="staticBackdropLabel">Enter your name</h1>
+          </div>
+          <div class="modal-body">
+            <div class="input-group flex-nowrap">
+              <div class="input-group-text">
+                <input type="color" class="form-control form-control-color" id="colorInput" value="#563d7c" title="Choose your color">
+              </div>
+              <input type="text" class="form-control" placeholder="Nombre" aria-label="Username" aria-describedby="addon-wrapping" id="username" required>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="submit" class="btn btn-primary" data-bs-dismiss="modal">Connect</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
 
-  // Función para conectar al WebSocket
-  function conectarWebSocket() {
-    username = document.getElementById('username').value;
-    if (username.trim() !== '') {
-        console.log(url)
-        const socket = new WebSocket(`ws://${url}`);
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+  
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      document.getElementById("openModalButton").click();
+    });
+    function getColor() {
+      const colorList = [
+        '#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF',
+        '#00FFFF', '#FF5733', '#33FF57', '#5733FF', '#FFA500',
+        '#00FF7F', '#FF1493', '#4169E1', '#FFD700', '#FF4500',
+        '#8A2BE2', '#00BFFF', '#008000', '#FF6347', '#1E90FF'
+      ];
 
-      socket.addEventListener('open', (event) => {
-        console.log(`Conectado como ${username}`);
-        socket.send(`cmd:newUser:${username}`);
-      });
+      const index = Math.floor(Math.random() * colorList.length);
+      return colorList[index];
+    }
 
-      socket.addEventListener('message', (event) => {
-        event.data.text().then((messageText) => {
-            if (messageText.startsWith("cmd:users:")) {
-                listarUsuarios(messageText)
-            } else if (messageText.startsWith("cmd:")) {
-                switch (messageText) {
-                    case 'cmd:iniciar':
-                        iniciarContador();
-                        break;
-                    case 'cmd:fin':
-                        detenerContador();
-                        break;
-                    case "3":
-                        console.log("Seleccionaste la opción 3");
-                        break;
-                    default:
-                        console.log("Opción no válida");
-                }
+    document.getElementById('colorInput').value = getColor();
+  </script>
+  
+  <script>
+    let username = '';
+    let users = [];
+    let messages = [];
+    let timerInterval;
+    const url = "localhost:4000"
+    // const url = window.location.href.replace(/^https?:\/\//, '')
+
+    // Función para conectar al WebSocket
+    function conectarWebSocket() {
+      const originName = document.getElementById('username').value;
+      const colorInput = document.getElementById('colorInput').value;
+      username = colorInput.concat('@').concat(originName);
+      if (username.trim() !== '') {
+          console.log(url)
+          const socket = new WebSocket(`ws://${url}`);
+
+        socket.addEventListener('open', (event) => {
+          console.log(`Conectado como ${username}`);
+          socket.send(`cmd:newUser:${username}`);
+        });
+
+        socket.addEventListener('message', (event) => {
+          event.data.text().then((messageText) => {
+              if (messageText.startsWith("cmd:users:")) {
+                  listarUsuarios(messageText)
+              } else if (messageText.startsWith("cmd:")) {
+                const game = document.getElementById('game');
+                  switch (messageText) {
+                      case 'cmd:iniciar':
+                          iniciarContador();
+                          game.innerText = "Stop"
+                          game.value = "stop"
+                          game.classList.remove('btn-success')
+                          game.classList.add('btn-danger')
+                          break;
+                      case 'cmd:fin':
+                          detenerContador();
+                          game.innerText = "Start"
+                          game.value = "start"
+                          game.classList.remove('btn-danger')
+                          game.classList.add('btn-success')
+                          break;
+                      default:
+                          console.log("Opción no válida");
+                  }
+              } else {
+                  mostrarMensaje(`${messageText}`);
+              }
+          });
+        });
+
+        socket.addEventListener('close', (event) => {
+          console.log('Conexión cerrada');
+          detenerContador();
+        });
+
+        window.enviarMensaje = function () {
+          const messageInput = document.getElementById('message-input');
+          const message = messageInput.value;
+          if (message.trim() !== '') {
+            if (message.startsWith("cmd:")) {
+              socket.send(`${message}`);
             } else {
-                mostrarMensaje(`${messageText}`);
+              socket.send(`${username}: ${message}`);
             }
-        });
-      });
-
-      socket.addEventListener('close', (event) => {
-        console.log('Conexión cerrada');
-        detenerContador();
-      });
-
-      window.enviarMensaje = function () {
-        const messageInput = document.getElementById('message-input');
-        const message = messageInput.value;
-        if (message.trim() !== '') {
-          if (message.startsWith("cmd:")) {
-            socket.send(`${message}`);
-          } else {
-            socket.send(`${username}: ${message}`);
+            messageInput.value = '';
           }
-          messageInput.value = '';
-        }
-      };
-    }
-  }
-
-  // Función para mostrar mensajes en el DOM
-  function mostrarMensaje(message) {
-    const messageList = document.getElementById('message-list');
-    const listItem = document.createElement('li');
-    listItem.textContent = message;
-    messageList.appendChild(listItem);
-  }
-
-  // Función para iniciar el contador
-  function iniciarContador() {
-    let tiempoRestante = 60; // 60 segundos = 1 minuto
-
-    // Actualizar el texto del contador cada segundo
-    timerInterval = setInterval(() => {
-      tiempoRestante--;
-      const minutos = Math.floor(tiempoRestante / 60);
-      const segundos = tiempoRestante % 60;
-      const tiempoFormateado = `${minutos}:${segundos < 10 ? '0' : ''}${segundos}`;
-
-      document.getElementById('timer').textContent = `Tiempo restante: ${tiempoFormateado} min`;
-
-      if (tiempoRestante === 0) {
-        detenerContador();
+        };
       }
-    }, 1000);
-  }
-
-  // Función para detener el contador
-  function detenerContador() {
-    clearInterval(timerInterval);
-    document.getElementById('timer').textContent = 'Tiempo restante: 1:00 min';
-  }
-
-  function listarUsuarios(messageText) {
-    const regex = /cmd:users:{([^}]*)}/;
-    const match = messageText.match(regex);
-    if (match && match[1]) {
-        const namesString = match[1];
-        users = namesString.split(',');
- 
-        var usuariosList = document.getElementById("usuarios");
-        usuariosList.innerHTML = "";
-        users.forEach(function(elemento) {
-            var li = document.createElement("li");
-            li.appendChild(document.createTextNode(elemento));
-            usuariosList.appendChild(li);
-        });
     }
-  }
+    
+    function crearSvg(color, size) {
+      const svgElement = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svgElement.setAttribute("class", "bd-placeholder-img flex-shrink-0 me-2 rounded");
+      svgElement.setAttribute("width", size);
+      svgElement.setAttribute("height", size);
+      svgElement.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+      svgElement.setAttribute("role", "img");
+      svgElement.setAttributeNS(null, "preserveAspectRatio", "xMidYMid slice");
+      svgElement.setAttribute("focusable", "false");
 
-  // Manejar el envío del formulario de nombre
-  const usernameForm = document.getElementById('usernameForm');
-  usernameForm.addEventListener('submit', function (event) {
-    event.preventDefault();
-    conectarWebSocket();
-  });
+      const rectElement = document.createElement("rect");
+      rectElement.setAttribute("width", "100%");
+      rectElement.setAttribute("height", "100%");
 
-  // Manejar el envío del formulario de mensaje
-  const messageForm = document.getElementById('messageForm');
-  messageForm.addEventListener('submit', function (event) {
-    event.preventDefault();
-    enviarMensaje();
-  });
+      svgElement.appendChild(rectElement);
+      svgElement.style.backgroundColor= color
+      return svgElement;
+    }
 
-</script>
+    // Función para mostrar mensajes en el DOM
+    function mostrarMensaje(message) {
+      
+      const messageList = document.getElementById('message-list');
+      const listElement = document.createElement('li');
+      listElement.classList.add('d-flex', 'text-body-secondary', 'pt-3', 'border-bottom');
 
+      const paragraphElement = document.createElement('p');
+      paragraphElement.classList.add('pb-3', 'mb-0', 'small', 'lh-sm');
+
+      const regex = /^#([0-9a-fA-F]{6})@([^:]+):\s(.+)$/;
+      const result = message.match(regex);
+
+      if (result) {
+        const color = '#' + result[1];
+        const name = result[2];
+        const text = result[3];
+        const strongElement = document.createElement('strong');
+        strongElement.classList.add('d-block', 'text-gray-dark');
+        strongElement.textContent = '@'.concat(name);
+        paragraphElement.appendChild(strongElement);
+        const paragraphText = document.createTextNode(text);
+        paragraphElement.appendChild(paragraphText);
+        let svgElement = crearSvg(color, "32");
+        listElement.appendChild(svgElement);
+      } else {
+        const pillRegex = /^\$([a-zA-Z]):(.*)$/;
+        const pillMatch = message.match(pillRegex);
+        if (pillMatch) {
+          const letter = pillMatch[1];
+          const pillText = pillMatch[2];
+          
+          const span = document.createElement('span');
+          span.classList.add('badge', 'rounded-pill')
+          const cleanRegex = /^#[0-9A-Fa-f]{6}@(.*)$/;
+          const cMatch = pillText.match(cleanRegex);
+          if (cMatch) {
+            span.innerText = cMatch[1];
+          } else {
+            span.innerText = pillText
+          }
+          if (letter == "i") {
+            span.classList.add('text-bg-danger')
+            const pill = document.createElement('h4');
+            pill.appendChild(span);
+            paragraphElement.appendChild(pill);
+          } else if (letter == "w") {
+            span.classList.add('text-bg-primary')
+            const pill = document.createElement('h4');
+            pill.appendChild(span);
+            paragraphElement.appendChild(pill);
+          } else if (letter == "x") {
+            span.classList.add('text-bg-warning')
+            const pill = document.createElement('h4');
+            pill.appendChild(span);
+            paragraphElement.appendChild(pill);
+          } else {
+            span.classList.add('bg-info-subtle', 'text-info-emphasis')
+            const pill = document.createElement('h6');
+            pill.appendChild(span);
+            paragraphElement.appendChild(pill);
+          }
+        } else {
+          const paragraphText = document.createTextNode(message);
+          paragraphElement.appendChild(paragraphText);
+        }
+      }  
+      listElement.appendChild(paragraphElement);
+      messageList.appendChild(listElement);
+      document.querySelector('.message-container').scrollTop = document.querySelector('.message-container').scrollHeight;
+    }
+
+    // Función para iniciar el contador
+    function iniciarContador() {
+      let tiempoRestante = 60; // 60 segundos = 1 minuto
+
+      // Actualizar el texto del contador cada segundo
+      timerInterval = setInterval(() => {
+        tiempoRestante--;
+        const minutos = Math.floor(tiempoRestante / 60);
+        const segundos = tiempoRestante % 60;
+        const tiempoFormateado = `${minutos}:${segundos < 10 ? '0' : ''}${segundos}`;
+
+        document.getElementById('timer').textContent = `Tiempo restante: ${tiempoFormateado} min`;
+
+        if (tiempoRestante === 0) {
+          detenerContador();
+        }
+      }, 1000);
+    }
+
+    // Función para detener el contador
+    function detenerContador() {
+      clearInterval(timerInterval);
+      document.getElementById('timer').textContent = 'Tiempo restante: 1:00 min';
+    }
+
+    function listarUsuarios(messageText) {
+      const regex = /cmd:users:{([^}]*)}/;
+      const match = messageText.match(regex);
+      if (match && match[1]) {
+          const namesString = match[1];
+          users = namesString.split(',');
+  
+          var usuariosList = document.getElementById("usuarios");
+          usuariosList.innerHTML = "";
+          
+          users.forEach(function(elemento) {
+            const nameRegex = /^#([0-9a-fA-F]{6})@([^@]+)$/;
+            const resultName = elemento.replace(/\s/g, "").match(nameRegex);
+            if (resultName) {
+              const color = '#' + resultName[1];
+              const name = resultName[2];
+              const li = document.createElement("li");
+              const svgElement = crearSvg(color, "16")
+              const h5 = document.createElement("h5")
+              h5.classList.add('mb-3px')
+              h5.style.marginBottom = "3px";
+              li.classList.add('list-item', 'd-flex', 'align-items-center', 'my-1');
+              h5.appendChild(document.createTextNode(name));
+              li.appendChild(svgElement);
+              li.appendChild(h5);
+              usuariosList.appendChild(li);
+            } else {
+              const li = document.createElement("li");
+              li.classList.add('list-item', 'd-flex', 'align-items-center');
+              const h5 = document.createElement("h5")
+              h5.appendChild(document.createTextNode(elemento));
+              li.appendChild(h5);
+              usuariosList.appendChild(li);
+            }
+          });
+      }
+    }
+
+    // Manejar el envío del formulario de nombre
+    const usernameForm = document.getElementById('usernameForm');
+    usernameForm.addEventListener('submit', function (event) {
+      event.preventDefault();
+      conectarWebSocket();
+    });
+
+    // Manejar el envío del formulario de mensaje
+    const messageForm = document.getElementById('messageForm');
+    messageForm.addEventListener('submit', function (event) {
+      event.preventDefault();
+      enviarMensaje();
+    });
+
+    // Botones de juego
+    const game = document.getElementById('game');
+    game.addEventListener('click', function() {
+      const element = document.getElementById('message-input');
+      if (game.value == 'start') {
+        element.value = "cmd:iniciar"
+      } else {
+        element.value = "cmd:fin"
+      }
+      enviarMensaje();
+    });
+
+  </script>
 </body>
 </html>
